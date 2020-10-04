@@ -10,17 +10,16 @@ def putFile(fpath, socket):
 		request['method'] = 'PUT'
 		request['resource'] = fpath
 		request['body'] = file.read().decode()
-		socket.send(json.dumps(request).encode())
-		# socket.sendfile(file)
 
 def getFile(fpath, socket):
 	request['method'] = 'GET'
 	request['resource'] = fpath
-	socket.send(json.dumps(request).encode())
 
 if __name__ == "__main__":
 	try:
-		if len(sys.argv) < 2: raise Exception()
+		if len(sys.argv) < 2:
+			raise Exception('Expected at least 2 parameters.')
+			sys.exit(1)
 		elif len(sys.argv) >= 5: SERVER_HOST, SERVER_PORT = str(sys.argv[3]), sys.argv[4] # Host and port specified
 		fpath = str(sys.argv[1]) # File to send to PUT to server
 		method = str(sys.argv[2]).upper() # Request method
@@ -30,8 +29,9 @@ if __name__ == "__main__":
 		elif method == 'GET': getFile(fpath, sock) # Send GET request
 		else: raise Exception('Request method not supported.')
 
+		sock.send(json.dumps(request).encode())
 		response = sock.recv(4096).decode()
 		print(response)
 		sock.shutdown(socket.SHUT_RDWR)
+		sock.close()
 	except Exception as err: print(f'Error: {err}')
-	finally: sock.close() if sock else None
