@@ -6,6 +6,13 @@ HOST, PORT = 'localhost', 9999 # Default host and port
 response = { 'status': 400 } # Default response
 sock = socket.socket() # Server socket object
 
+def sendResponse(conn):
+	global response
+	print('Sending Response...')
+	response = json.dumps(response) + '\0' # Add line terminator (null ascii character)
+	conn.send(response.encode()) # Send response to client
+
+
 def putFile(fname, data):
 	global response
 	print(f'Putting file: {fname}')
@@ -25,9 +32,10 @@ def getFile(fname):
 	print(f'Getting file: {fname}')
 	if os.path.exists(fname): # Check if file exists, send file contents
 		print('resource found, getting file')
-		with open(fname, 'br') as file:
+		with open(fname, 'r') as file:
 			response['status'] = 200
-			response['data'] = base64.b64encode(file.read()).decode('ascii')
+			response['resource'] = fname
+			response['data'] = file.read()
 	else: response['status'] = 404 # File does not exist
 
 
@@ -71,9 +79,9 @@ if __name__ == "__main__":
 				conn.send(response.encode()) # Send response to client
 				conn.close() # Close socket connection
 				print('Connection Terminated')
-				sys.exit() # Exit after request fulfilled
+				os._exit(0) # Exit after request fulfilled
 	except Exception as err: print(f'Error: {err}\n')
 	except KeyboardInterrupt: print('Server shutting down...')
 	finally:
+		print('Shutting down...')
 		sock.close()
-		sys.exit(1)
