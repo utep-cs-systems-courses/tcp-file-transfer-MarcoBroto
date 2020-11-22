@@ -71,10 +71,7 @@ if __name__ == "__main__":
 		if method == 'GET' and response['status'] == 200:
 			with open(response['resource'], 'w') as file: file.write(response['data']) # Write GET data to new file
 
-		print('Shutting down...')
-		sock.shutdown(socket.SHUT_RDWR)
-		print('Closing socket')
 		sock.close()
 	except KeyError as err: print(err)
 	except KeyboardInterrupt as err: print(err)
-	# except Exception as err: print(f'Error: {err}')
+	except OSError as err: print(f'Error: {err}')
