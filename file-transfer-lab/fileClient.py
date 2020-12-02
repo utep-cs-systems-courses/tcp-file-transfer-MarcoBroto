@@ -5,32 +5,42 @@ import os.path as path, sys, socket, json, base64
 SERVER_HOST, SERVER_PORT = 'localhost', 9999
 request = {}
 
-def createRequest(method, fpath):
-	request['method'] = method
-	request['resource'] = path.basename(fpath)
+def readResponse():
+	try:
+		blocks = []
+		while buffer := sock.recv(4096).decode():  # Read initial request
+			if buffer[-1] == '\0':
+				blocks.append(buffer[:-1])
+				break
+			else: blocks.append(buffer)
+		return json.loads(''.join(blocks))
+	except json.JSONDecodeError as err:
+		print(err)
+		return None
+
+
+def createRequest(method, fpath, withData=False):
+	global request
+	request = {'method': method, 'resource': path.basename(fpath)}
 	if method == 'PUT':
-		with open(fpath, 'br') as file:
-			try: request['data'] = base64.b64encode(file.read()).decode('ascii')
-			except Exception as err: print(err)
-	elif method == 'GET': pass
+		if withData:
+			with open(fpath, 'br') as file:
+				try: request['data'] = base64.b64encode(file.read()).decode('ascii')
+				except Exception as err: print(err)
+	elif method == 'GET': pass # Request is already initialized
 	else: raise Exception('Request method not supported.')
 
 
-def handleResponse(method):
-	# Recieve initial response
-	print('Receiving response...')
-	blocks = []
-	while buffer := sock.recv(4096).decode(): # Read response
-		if buffer[-1] == '\0': # End of response
-			blocks.append(buffer[:-1])
-			break
-		else: blocks.append(buffer)
-	response = json.loads(''.join(blocks))
-	print(f'{response=}')
-
-	if method == 'PUT': pass
-	elif method == 'GET':
-		with open(response['resource'], 'w') as file: file.write(response['data']) # Write GET data to new file
+def handleResponse(res):
+	print(f'{res=}')
+	if request['method'] == 'PUT': # Handle secondary response
+		if res['status'] == 200:
+			createRequest(request['method'], request['resource'], True)
+			req = json.dumps(request) + '\0'  # Add line terminator (null ascii character)
+			sock.send(req.encode()) # Send PUT request with payload
+			res = readResponse()
+	elif request['method'] == 'GET' and res['status'] == 200 and 'data' in res:
+		with open(request['resource'], 'w') as file: file.write(res['data']) # Write GET data to new file
 	else: raise Exception('Method not supported')
 
 
@@ -54,24 +64,14 @@ if __name__ == "__main__":
 		# Send initial request
 		createRequest(method, fpath)
 		print('Sending request...')
-		request = json.dumps(request) + '\0' # Add line terminator (null ascii character)
-		sock.send(request.encode())
+		req = json.dumps(request) + '\0'  # Add line terminator (null ascii character)
+		sock.send(req.encode())
 
 		# Receive response to initial request
 		print('Receiving response...')
-		blocks = []
-		while buffer := sock.recv(4096).decode(): # Read response
-			if buffer[-1] == '\0': # End of response
-				blocks.append(buffer[:-1])
-				break
-			else: blocks.append(buffer)
-		response = json.loads(''.join(blocks))
-		print(f'{response=}')
-
-		if method == 'GET' and response['status'] == 200:
-			with open(response['resource'], 'w') as file: file.write(response['data']) # Write GET data to new file
+		handleResponse(readResponse())
 
 		sock.close()
 	except KeyError as err: print(err)
 	except KeyboardInterrupt as err: print(err)
-	except OSError as err: print(f'Error: {err}')
+	# except OSError as err: print(f'Error: {err}')
