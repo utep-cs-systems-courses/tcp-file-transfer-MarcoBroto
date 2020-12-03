@@ -108,9 +108,10 @@ def handleConnection(conn, addr):
 
 
 def getArgs():
-	global HOST, PORT
-	if '-h' in sys.argv: HOST = sys.argv[sys.argv.index('-h')+1]
-	if '-p' in sys.argv: PORT = int(sys.argv[sys.argv.index('-p')+1])
+	if len(sys.argv) == 3: HOST, PORT = sys.argv[1], sys.argv[2] # Change host and ports with user params
+	else:
+		if '-h' in sys.argv: HOST = sys.argv[sys.argv.index('-h')+1]
+		if '-p' in sys.argv: PORT = sys.argv[sys.argv.index('-p')+1]
 
 
 def setup():
